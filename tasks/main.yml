@@ -1,0 +1,53 @@
+---
+- name: Setup and configure firewalld service
+  tags: firewalld
+  block:
+
+    - name: Install firewalld packages
+      ansible.builtin.package:
+        name: "{{ item }}"
+        state: present
+      with_items: "{{ firewalld_packages }}"
+      when:
+        - firewalld_packages | length > 0
+        - firewalld_add is defined and firewalld_add | length > 0
+        - firewalld_ipset_add is defined and firewalld_ipset_add | length > 0
+      notify: start-firewalld
+
+    # Add and Remove ipsets
+
+    - name: Removing ipsets
+      ansible.builtin.include_tasks: ipsets.yml
+      vars:
+        firewall_action: "remove"
+        firewall_rules: "{{ firewalld_ipset_remove }}"
+      when:
+        - firewalld_ipset_remove is defined and firewalld_ipset_remove | length > 0
+
+    - name: Adding ipsets
+      ansible.builtin.include_tasks: ipsets.yml
+      vars:
+        firewall_action: "add"
+        firewall_rules: "{{ firewalld_ipset_add }}"
+      when:
+        - firewalld_ipset_add is defined and firewalld_ipset_add | length > 0
+        - firewalld_add is defined and firewalld_add | length > 0
+
+    # Add and Remove Rules
+
+    - name: Removing interfaces, services, ports, rules
+      ansible.builtin.include_tasks: rules.yml
+      vars:
+        firewall_action: "remove"
+        firewall_rules: "{{ firewalld_remove }}"
+      when:
+        - firewalld_remove is defined and firewalld_remove | length > 0
+
+
+    - name: Adding zones, interfaces, services, ports, rules
+      ansible.builtin.include_tasks: rules.yml
+      vars:
+        firewall_action: "add"
+        firewall_rules: "{{ firewalld_add }}"
+      when:
+        - firewalld_add is defined and firewalld_add | length > 0

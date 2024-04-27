@@ -1,0 +1,12 @@
+---
+
+- name: Start/Enable firewalld
+  listen: start-firewalld
+  ansible.builtin.systemd:
+    name: "{{ firewalld_service_name }}"
+    state: restarted
+    enabled: true
+
+- name: Reload firewalld
+  listen: reload-firewalld
+  ansible.builtin.command: "firewall-cmd --reload"

@@ -1,0 +1,23 @@
+---
+- name: Manage ipsets
+  tags: firewalld
+  block:
+
+    - name: new ipset
+      ansible.builtin.shell: firewall-cmd -q --permanent --new-ipset="{{ item.name }}" --type=hash:ip || echo "ipset already exists"
+      changed_when: true
+      ignore_errors: true
+      loop: "{{ firewall_rules }}"
+      when:
+        - firewall_action == "add"
+        - firewall_rules is defined and firewall_rules | length > 0
+
+    - name: "{{ firewall_action }} ip"
+      ansible.builtin.command: firewall-cmd --permanent --ipset={{ item.name }}{% for ip in item.ips %} --{{ firewall_action }}-entry={{ ip }}{% endfor %}
+      changed_when: true
+      loop: "{{ firewall_rules }}"
+      when:
+        - firewall_rules is defined 
+        - item.ips is defined and item.ips | length > 0
+
+  notify: reload-firewalld

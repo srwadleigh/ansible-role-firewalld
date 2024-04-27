@@ -1,0 +1,82 @@
+---
+- name: Create Zones, then apply interfaces and rules
+  tags: firewalld
+  block:
+
+    - name: New zones
+      ansible.builtin.shell: firewall-cmd -q --permanent --new-zone="{{ item.name }}" || echo "zone already exists"
+      changed_when: true
+      ignore_errors: true
+      loop: "{{ firewall_rules }}"
+      when:
+        - firewall_action == "add"
+        - firewall_rules is defined and firewall_rules | length > 0
+
+    - name: "{{ firewall_action }} interfaces"
+      ansible.builtin.command: firewall-cmd --permanent --zone={{ item.name }}{% for interface in item.interfaces %} --{{ firewall_action }}-interface={{ interface }}{% endfor %}
+      changed_when: true
+      loop: "{{ firewall_rules }}"
+      when:
+        - firewall_rules is defined 
+        - item.interfaces is defined and item.interfaces | length > 0
+
+    - name: "{{ firewall_action }} services"
+      ansible.builtin.command: firewall-cmd --permanent --zone={{ item.name }}{% for service in item.services %} --{{ firewall_action }}-service={{ service }}{% endfor %}
+      changed_when: true
+      loop: "{{ firewall_rules }}"
+      when:
+        - firewall_rules is defined 
+        - item.services is defined and item.services | length > 0
+
+    - name: "{{ firewall_action }} ports"
+      ansible.builtin.command: firewall-cmd --permanent --zone={{ item.name }}{% for port in item.ports %} --{{ firewall_action }}-port={{ port }}{% endfor %}
+      changed_when: true
+      loop: "{{ firewall_rules }}"
+      when:
+        - firewall_rules is defined 
+        - item.ports is defined and item.ports | length > 0
+
+    - name: "{{ firewall_action }} rich rules"
+      ansible.builtin.command: firewall-cmd --permanent --zone={{ item.name }}{% for rule in item.rules %} --{{ firewall_action }}-rich-rule='{{ rule }}'{% endfor %}
+      changed_when: true
+      loop: "{{ firewall_rules }}"
+      when:
+        - firewall_rules is defined 
+        - item.rules is defined and item.rules | length > 0
+    
+    - name: "{{ firewall_action }} sources"
+      ansible.builtin.command: firewall-cmd --permanent --zone={{ item.name }}{% for source in item.sources %} --{{ firewall_action }}-source={{ source }}{% endfor %}
+      changed_when: true
+      loop: "{{ firewall_rules }}"
+      when:
+        - firewall_rules is defined 
+        - item.sources is defined and item.sources | length > 0
+
+    - name: "{{ firewall_action }} forwards"
+      ansible.builtin.command: firewall-cmd --permanent --zone={{ item.name }}{% for forward in item.forwards %} --{{ firewall_action }}-forward-port=port={{ forward.port }}:proto={{ forward.proto | d('tcp')}}:toport={{ forward.to }}:toaddr={{ forward.toaddr | d('') }}{% endfor %}
+      changed_when: true
+      loop: "{{ firewall_rules }}"
+      when:
+        - firewall_rules is defined 
+        - item.forwards is defined and item.forwards | length > 0
+
+    - name: Set forwarding
+      ansible.builtin.command: firewall-cmd --permanent {% if item.forward %}--add-forward{% else %}--remove-forward{% endif %} 
+      changed_when: true
+      loop: "{{ firewall_rules }}"
+      when:
+        - firewall_rules is defined and firewall_rules | length > 0
+        - item.forward is defined
+
+    - name: Set masquerading
+      ansible.builtin.firewalld:
+        zone: "{{ item.name }}"
+        masquerade: "{{ item.masquerade | d('false') }}"
+        permanent: true
+        state: enabled
+      loop: "{{ firewall_rules }}"
+      when:
+        - firewall_rules is defined and firewall_rules | length > 0
+        - item.masquerade is defined
+
+  notify: reload-firewalld

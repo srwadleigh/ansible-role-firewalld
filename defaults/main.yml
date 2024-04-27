@@ -1,0 +1,6 @@
+---
+firewalld_packages:
+  - firewalld
+
+firewalld_service_name: firewalld
+firewalld_default_zone: public
